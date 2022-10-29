@@ -3,11 +3,15 @@ import logo from "../../assets/logo.png";
 import { HttpAgent, Actor } from "@dfinity/agent";
 import { idlFactory } from "../../../declarations/nft";
 import { Principal } from "@dfinity/principal";
+import Button from "./Button";
+import { opend } from "../../../declarations/opend";
 
 function Item(props) {
   const [name, setName] = useState();
   const [owner, setOwner] = useState();
   const [image, setImage] = useState();
+  const [button, setButton] = useState();
+  const [priceInput, setPriceInput] = useState();
 
   const id = props.id;
 
@@ -15,9 +19,12 @@ function Item(props) {
   const agent = new HttpAgent({
     host: localHost,
   });
+  // TODO: when deploy on live blockchain, remove this line.
+  agent.fetchRootKey();
+  let NFTActor;
 
   async function loadNFT() {
-    const NFTActor = await Actor.createActor(idlFactory, {
+    NFTActor = await Actor.createActor(idlFactory, {
       agent,
       canisterId: id,
     });
@@ -32,6 +39,33 @@ function Item(props) {
       new Blob([imageContent.buffer], { type: "image/png" })
     );
     setImage(image);
+    setButton(<Button handleClick={handleSell} text={"Sell"} />);
+  }
+
+  let price;
+  function handleSell() {
+    console.log("Sell clicked!");
+    setPriceInput(
+      <input
+        placeholder="Price in DANG"
+        type="number"
+        className="price-input"
+        value={price}
+        onChange={(e) => (price = e.target.value)}
+      />
+    );
+    setButton(<Button handleClick={sellItem} text={"Confirm"} />);
+  }
+
+  async function sellItem() {
+    // console.log(price);
+    const listingResult = await opend.listItem(props.id, Number(price));
+    console.log("Listing result: " + listingResult);
+    if (listingResult === "Success") {
+      const openDId = await opend.getOpenDCanisterID();
+      const transferResult = await NFTActor.transferOwnership(openDId);
+      console.log("Transfer result: " + transferResult);
+    }
   }
 
   useEffect(() => {
@@ -53,6 +87,8 @@ function Item(props) {
           <p className="disTypography-root makeStyles-bodyText-24 disTypography-body2 disTypography-colorTextSecondary">
             Owner: {owner}
           </p>
+          {priceInput}
+          {button}
         </div>
       </div>
     </div>
